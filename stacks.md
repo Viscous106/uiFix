@@ -1,0 +1,5 @@
+- Ui with react or something
+- Tailwind CSS CDN link
+- Backend with fastapi and python
+- gemini key
+- Chrome Manifest V3 APIs
