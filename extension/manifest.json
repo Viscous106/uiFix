@@ -1,4 +1,5 @@
 {
+    "_comment": "Manifest file that builds the extension logic",
     "manifest_version": 3,
     "name": "uiFix - AI UI Debugger",
     "version": "1.0.0",

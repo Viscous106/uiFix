@@ -1,2 +1,17 @@
-venv 
+# Python / Backend
+venv/
 .env
+__pycache__/
+*.pyc
+*.pyo
+
+# ChromaDB - generated vector DB, never commit
+backend/chroma_db/
+
+# Node (build tool only, never ships in extension)
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
