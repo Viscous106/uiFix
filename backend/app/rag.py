@@ -59,7 +59,7 @@ vector = Chroma.from_documents(
 # Retrieving from vector embedding
 retriever = vector.as_retriever(search_kwargs={"k": 3})
 
-# Systen Prompt 
+# System Prompt 
 prompt = ChatPromptTemplate.from_template("""
 You are UIFix — a senior-level UI/UX Auditor and Frontend Architect.
 
@@ -164,7 +164,7 @@ def analyze_ui(user_input: str):
     save_chat_history(user_input, response)
     return response
 
-# Continous chat feature
+# Continuous chat feature
 if __name__ == "__main__":
     print("\nUIFix AI Chat Started")
     print("Type 'exit', 'quit', or 'stop' to end the conversation.\n")
