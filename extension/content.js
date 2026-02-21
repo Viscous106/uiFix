@@ -35,6 +35,6 @@
     // 4. Serialize to string
     const domString = bodyClone.innerHTML;
 
-    // Return the string (this is captured by chrome.scripting.executeScript in sidepanel.js)
+    // Return the string (this is captured by chrome.scripting.executeScript in popup.js)
     return domString;
 })();

@@ -6,8 +6,10 @@
     "description": "Analyze and debug UI issues instantly using Vision-Language Models.",
     "permissions": [
         "activeTab",
-        "scripting",
-        "storage"
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://localhost:8000/*"
     ],
     "background": {
         "service_worker": "background.js"
