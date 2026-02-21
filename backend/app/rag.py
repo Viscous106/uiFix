@@ -1,7 +1,25 @@
-# Calling AI-Key 
+# Calling AI-Key
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 load_dotenv()
+
+# --- API Key Guard ---
+DOTENV_PATH = os.path.join(os.path.dirname(__file__), "../../.env")
+
+def ensure_api_key():
+    key = os.getenv("GOOGLE_API_KEY")
+    if not key or key.strip() == "":
+        print("\n⚠️  No Gemini API key found.")
+        key = input("🔑 Enter your Google Gemini API key: ").strip()
+        if not key:
+            raise ValueError("API key is required. Get one at https://aistudio.google.com/apikey")
+        set_key(DOTENV_PATH, "GOOGLE_API_KEY", key)
+        os.environ["GOOGLE_API_KEY"] = key
+        print("✅ API key saved to .env\n")
+    else:
+        print("✅ Gemini API key loaded.\n")
+
+ensure_api_key()
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -15,8 +33,7 @@ from langchain_community.embeddings import FakeEmbeddings
 # History will be saved for 6 prompts only after then u have to work on new chat
 MAX_TURNS = 6
 
-chat_name = input("Enter chat session name: ").strip()
-CHAT_HISTORY_FILE = f"{chat_name}_chat-history.txt"
+CHAT_HISTORY_FILE = "chat-history.txt"
 
 # Chat - History
 def load_chat_history():
@@ -59,30 +76,8 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.3
 )
 
-loader = TextLoader("File_structure.txt")
-documents = loader.load()
 
-# Split long text into small chunks 
-splitter = RecursiveCharacterTextSplitter(
-    chunk_size=700,
-    chunk_overlap=100
-)
-
-chunks = splitter.split_documents(documents)
-
-embedding_model = FakeEmbeddings(size=384)
-
-# Converting the embedding into vector database
-vector = Chroma.from_documents(
-    documents=chunks,
-    embedding=embedding_model,
-    persist_directory="./chroma_db"
-)
-
-retriever = vector.as_retriever(search_kwargs={"k": 3})
-
-# Prompt Template
-prompt = ChatPromptTemplate.from_template("""
+rag_chain_template = ChatPromptTemplate.from_template("""
 You are UIFix — a senior-level UI/UX Auditor and Frontend Architect.
 
 You MUST use only the provided context as your reference knowledge.
@@ -94,7 +89,7 @@ CHAT HISTORY
 {chat_history}
 
 =====================
-DESIGN CONTEXT
+DOM CONTEXT
 =====================
 {context}
 
@@ -107,36 +102,17 @@ USER INPUT
 OBJECTIVE
 =====================
 
-Analyze the UI based on the provided context and user input.
-
-If the input represents:
-- A UI structure
-- A DOM summary
-- A file structure
-- A frontend component
-- A design description
-
-Then perform a professional evaluation.
+Analyze the UI based on the provided DOM context and user input.
 
 =====================
 ANALYSIS REQUIREMENTS
 =====================
 
-1. Provide a UI Health Score (0–100) if applicable.
+1. Provide a UI Health Score (0–100).
 2. Identify structural issues.
 3. Identify accessibility issues.
 4. Identify UX and hierarchy problems.
-5. Identify maintainability or architectural weaknesses.
-6. Suggest concrete, actionable improvements.
-7. If relevant, generate improved frontend code.
-
-Code generation rules:
-- Use the most appropriate frontend approach based on the input.
-- Do NOT assume a specific framework.
-- If no framework is specified, use clean semantic HTML + modern CSS.
-- Ensure accessibility best practices.
-- Ensure responsive design.
-- Ensure production-level cleanliness.
+5. Suggest concrete, actionable improvements.
 
 =====================
 OUTPUT FORMAT
@@ -145,45 +121,103 @@ OUTPUT FORMAT
 UI_HEALTH_SCORE: <number or N/A>
 
 KEY_ISSUES:
-- ...
-- ...
+- [SEVERITY] Description | selector: <css selector if known> | fix: <short fix suggestion>
 
 IMPROVEMENT_RECOMMENDATIONS:
 - ...
-- ...
-
-ARCHITECTURAL_SUGGESTIONS:
-- ...
-- ...
-
-IMPROVED_FRONTEND_CODE (if applicable):
-<code block here>
 
 =====================
 IMPORTANT
 =====================
 - Be concise but authoritative.
 - Do not hallucinate missing context.
-- If context is insufficient, clearly state what is missing.
 - Think like a senior frontend engineer performing a professional audit.
 """)
 
-rag_chain = (
-    {
-        "context": retriever,
-        "input": RunnablePassthrough(),
-        "chat_history": lambda x: load_chat_history()
-    }
-    | prompt
-    | llm
-    | StrOutputParser()
-)
+
+def analyze_ui(dom_string: str) -> str:
+    """
+    Build a fresh in-memory RAG chain from the live DOM string
+    and run it through Gemini. Rebuilt per-request so every audit
+    uses the actual page's content as context — not a stale file.
+
+    TODO: Once VLM is implemented by the other team member, this
+    function will also accept a vlm_description: str parameter and
+    combine both DOM + visual context before embedding.
+    """
 
 
-def analyze_ui(user_input: str):
-    response = rag_chain.invoke(user_input)
-    save_chat_history(user_input, response)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100)
+    docs = splitter.create_documents([dom_string])
+
+    embedding_model = FakeEmbeddings(size=384)
+    vector = Chroma.from_documents(documents=docs, embedding=embedding_model)
+    retriever = vector.as_retriever(search_kwargs={"k": 3})
+
+    rag_chain = (
+        {
+            "context": retriever,
+            "input": RunnablePassthrough(),
+            "chat_history": lambda x: load_chat_history()
+        }
+        | rag_chain_template
+        | llm
+        | StrOutputParser()
+    )
+
+    response = rag_chain.invoke(dom_string)
+    save_chat_history(dom_string[:200], response)
     return response
+
+
+# Chat prompt — used for follow-up questions after an audit
+chat_prompt = ChatPromptTemplate.from_template("""
+You are UIFix — a senior-level UI/UX Auditor and Frontend Architect.
+
+You previously audited a page and found these issues:
+
+=====================
+AUDIT RESULTS
+=====================
+{audit_context}
+
+=====================
+CONVERSATION HISTORY
+=====================
+{chat_history}
+
+=====================
+USER QUESTION
+=====================
+{question}
+
+=====================
+INSTRUCTIONS
+=====================
+Answer the user's question about the UI issues found.
+You can explain issues in more depth, suggest code fixes, discuss backend connectivity
+problems, UX trade-offs, or anything related to the audit results.
+Be concise, practical, and direct. Think like a senior engineer pair-programming with the user.
+""")
+
+
+def chat_with_context(audit_context: str, chat_history: str, user_message: str) -> str:
+    """
+    Follow-up chat after an audit. Uses the original audit results as grounding
+    context so the AI can answer questions about specific bugs found.
+
+    audit_context: The issues + DOM summary from the initial /audit call
+    chat_history:  Previous turns in this session (managed by main.py)
+    user_message:  The user's current question
+    """
+    chain = chat_prompt | llm | StrOutputParser()
+    response = chain.invoke({
+        "audit_context": audit_context,
+        "chat_history": chat_history,
+        "question": user_message,
+    })
+    return response
+
 
 # Chat Options 
 if __name__ == "__main__":

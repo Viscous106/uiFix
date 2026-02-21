@@ -1,7 +1,10 @@
-dotenv 
-pydantic 
+python-dotenv
+pydantic
+fastapi
+uvicorn
 langchain
-langchain-google-genai 
+langchain-google-genai
 langchain-core
-langchain-community 
-chroma
+langchain-community
+langchain-text-splitters
+chromadb

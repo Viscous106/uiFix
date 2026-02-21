@@ -4,6 +4,7 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+.python-version
 
 # ChromaDB - generated vector DB, never commit
 backend/chroma_db/
@@ -15,3 +16,4 @@ package-lock.json
 # OS
 .DS_Store
 Thumbs.db
+

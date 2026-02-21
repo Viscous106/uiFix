@@ -1,0 +1,7 @@
+# uiFix Knowledge Base — Placeholder
+# TODO: This file will be replaced at runtime with the dynamic DOM string
+# and VLM analysis from the current audit request.
+# For now it contains a minimal stub so TextLoader does not crash on an empty file.
+
+PLACEHOLDER: This is a temporary stub. Real content (DOM + VLM analysis) will be
+written here dynamically when the audit button is clicked in the extension.
