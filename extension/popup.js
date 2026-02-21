@@ -34,7 +34,7 @@ function showState(state) {
     state.classList.add('active');
   });
 }
-
+// will be reviewing later
 function renderIssues(issues) {
     issuesList.innerHTML = '';
     issueCount.textContent = issues.length;
