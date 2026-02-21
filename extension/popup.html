@@ -9,16 +9,59 @@
   <link rel="stylesheet" href="styles.css">
 
   <style>
-    html,
-    body {
+    html, body {
       font-family: 'Inter', sans-serif;
       background: linear-gradient(90deg, #280861, #000000);
       color: #f1f5f9;
       width: 360px;
+      margin: 0;
+      padding: 0;
     }
 
-    .header {
-      background: rgba(10, 10, 20, 0.6);
+    .hidden { display: none; }
+
+    .chat-container {
+      margin-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 12px;
+    }
+
+    .chat-messages {
+      max-height: 150px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      padding: 6px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+
+    .chat-input-row button {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: none;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+    }
+
+    .turn-counter {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 4px;
+      text-align: right;
     }
   </style>
 </head>
@@ -27,7 +70,6 @@
 
   <!-- HEADER -->
   <div class="header header-bar">
-
     <div class="header-left">
       <img src="icons/icon48.png" width="26" height="26" class="logo">
       <div>
@@ -35,19 +77,15 @@
         <div class="app-subtitle">AI UI Debugger</div>
       </div>
     </div>
-
     <span class="version-pill">v1.0</span>
-
   </div>
 
   <!-- BODY -->
   <div id="results-container">
 
-    <!-- WELCOME -->
+    <!-- WELCOME STATE -->
     <div id="welcome-state">
-
       <div class="hero">
-
         <div class="hero-icon">
           <img src="icons/icon48.png" width="34">
         </div>
@@ -58,71 +96,20 @@
           VLM + DOM analysis powered by AI.<br>
           Catches what the human eye misses.
         </p>
-
       </div>
-
-      <div class="features">
-
-        <div class="feature-row">
-          <div class="feature-icon blue">
-            <!-- svg unchanged -->
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#60a5fa">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909" />
-            </svg>
-          </div>
-          <div>
-            <div class="feature-title">Screenshot Analysis</div>
-            <div class="feature-desc">Captures exactly what the user sees</div>
-          </div>
-        </div>
-
-        <div class="feature-row">
-          <div class="feature-icon purple">
-            <!-- svg unchanged -->
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#a5b4fc">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-            </svg>
-          </div>
-          <div>
-            <div class="feature-title">Structural DOM Map</div>
-            <div class="feature-desc">Pinpoints exact elements causing issues</div>
-          </div>
-        </div>
-
-        <div class="feature-row">
-          <div class="feature-icon cyan">
-            <!-- svg unchanged -->
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#67e8f9">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-            </svg>
-          </div>
-          <div>
-            <div class="feature-title">Vision AI</div>
-            <div class="feature-desc">Returns structured, actionable fixes</div>
-          </div>
-        </div>
-
-      </div>
-
     </div>
 
-    <!-- LOADING -->
-    <div id="loading-state" class="state hidden">
-
+    <!-- LOADING STATE -->
+    <div id="loading-state" class="hidden">
       <div class="spinner"></div>
-
       <div class="loading-text">
         <p id="loading-text">Initializing...</p>
-        <p class="muted">This takes 3-5 seconds</p>
+        <p class="muted">This takes 12-15 seconds</p>
       </div>
-
     </div>
 
-    <!-- RESULTS -->
-    <div id="results-state" class="state hidden">
+    <!-- RESULTS STATE -->
+    <div id="results-state" class="hidden">
 
       <div class="results-header">
         <span class="results-label">Findings</span>
@@ -131,31 +118,37 @@
 
       <div id="issues-list"></div>
 
-    </div>
+      <!-- CHAT SECTION (hidden until audit completes) -->
+      <div id="chat-container" class="chat-container hidden">
 
-    <!-- ERROR -->
-    <div id="error-state" class="state hidden">
-      <div class="error-icon">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#f87171">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-        </svg>
+        <div id="chat-messages" class="chat-messages"></div>
+
+        <div class="chat-input-row">
+          <input id="chat-input" placeholder="Ask about this audit..." />
+          <button id="chat-send">Send</button>
+        </div>
+
+        <div class="turn-counter">
+          Turns remaining: <span id="chat-remaining">6</span>
+        </div>
+
       </div>
 
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="error-state" class="hidden">
       <p class="error-title">Audit Failed</p>
       <p id="error-text" class="muted">Check console</p>
-
     </div>
 
   </div>
 
   <!-- FOOTER -->
   <div class="footer">
-
     <button id="audit-btn" class="btn full-btn">
       <span id="btn-text">Run Page Audit</span>
     </button>
-
   </div>
 
   <script src="popup.js"></script>
