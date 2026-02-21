@@ -1,0 +1,16 @@
+USER: hi
+AI: UI_HEALTH_SCORE: N/A
+
+KEY_ISSUES:
+- The user input "hi" does not provide any UI structure, DOM summary, file structure, frontend component, or design description.
+- Insufficient information to perform a UI audit against the provided guidelines.
+
+IMPROVEMENT_RECOMMENDATIONS:
+- Please provide a UI structure, DOM summary, file structure, frontend component, or design description for a comprehensive audit.
+
+ARCHITECTURAL_SUGGESTIONS:
+- N/A (Insufficient context)
+
+IMPROVED_FRONTEND_CODE:
+N/A (Insufficient context)
+
