@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>uiFix</title>
+
+  <style>
+    html,
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #07070c;
+      color: #f1f5f9;
+      width: 360px;
+    }
+
+    .btn {
+      transition: all 0.15s;
+      background: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5) inset, 0 2px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn:hover {
+      background: #1d4ed8;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.6) inset, 0 4px 20px rgba(37, 99, 235, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0px);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .spinner {
+      width: 30px;
+      height: 30px;
+      border: 2.5px solid rgba(59, 130, 246, 0.15);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .badge-low {
+      background: rgba(74, 222, 128, 0.1);
+      color: #86efac;
+      border: 1px solid rgba(74, 222, 128, 0.2);
+    }
+
+    .badge-medium {
+      background: rgba(234, 179, 8, 0.1);
+      color: #fde68a;
+      border: 1px solid rgba(234, 179, 8, 0.2);
+    }
+
+    .badge-high {
+      background: rgba(249, 115, 22, 0.1);
+      color: #fdba74;
+      border: 1px solid rgba(249, 115, 22, 0.2);
+    }
+
+    .badge-critical {
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .issue-card {
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 10px;
+      padding: 12px;
+      transition: border-color 0.15s;
+    }
+
+    .issue-card:hover {
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    #results-container {
+      max-height: 430px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+    }
+  </style>
+</head>
+
+<body class="flex flex-col">
+
+  <!-- HEADER -->
+  <div class="flex items-center justify-between px-4 py-3" style="border-bottom: 1px solid rgba(255,255,255,0.06)">
+    <div class="flex items-center gap-2">
+      <img src="icons/icon48.png" width="26" height="26" alt="logo" class="rounded-lg">
+      <div>
+        <div class="text-sm font-bold leading-none text-white">uiFix</div>
+        <div class="text-[10px] leading-none mt-0.5" style="color:#60a5fa">AI UI Debugger</div>
+      </div>
+    </div>
+    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+      style="background:rgba(37,99,235,0.12); border:1px solid rgba(37,99,235,0.25); color:#93c5fd">v1.0</span>
+  </div>
+
+  <!-- SCROLLABLE BODY -->
+  <div id="results-container">
+
+    <!-- Welcome State -->
+    <div id="welcome-state">
+
+      <!-- Hero -->
+      <div class="text-center px-5 py-6" style="border-bottom: 1px solid rgba(255,255,255,0.06)">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+          style="background: linear-gradient(145deg, rgba(37,99,235,0.18), rgba(99,102,241,0.08)); border: 1px solid rgba(59,130,246,0.18);">
+          <img src="icons/icon48.png" width="34" height="34" alt="logo">
+        </div>
+        <h2 class="text-base font-extrabold tracking-tight text-white mb-1.5">Instant UI Audit</h2>
+        <p class="text-xs leading-relaxed" style="color:rgba(241,245,249,0.38)">Vision + DOM analysis powered by Gemini
+          AI.<br>Catches what the human eye misses.</p>
+      </div>
+
+      <!-- Feature Rows -->
+      <div class="px-4 py-1">
+
+        <div class="flex items-center gap-3 py-3" style="border-bottom: 1px solid rgba(255,255,255,0.05)">
+          <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+            style="background:rgba(37,99,235,0.12)">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#60a5fa">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">Screenshot Analysis</div>
+            <div class="text-[11px]" style="color:rgba(241,245,249,0.35)">Captures exactly what the user sees</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 py-3" style="border-bottom: 1px solid rgba(255,255,255,0.05)">
+          <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+            style="background:rgba(99,102,241,0.12)">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#a5b4fc">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">Structural DOM Map</div>
+            <div class="text-[11px]" style="color:rgba(241,245,249,0.35)">Pinpoints exact elements causing issues</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 py-3">
+          <div class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+            style="background:rgba(6,182,212,0.1)">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#67e8f9">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">Gemini Vision AI</div>
+            <div class="text-[11px]" style="color:rgba(241,245,249,0.35)">Returns structured, actionable fixes</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="hidden flex-col items-center justify-center px-6 py-12 gap-4">
+      <div class="spinner"></div>
+      <div class="text-center">
+        <p class="text-sm font-semibold text-white" id="loading-text">Initializing...</p>
+        <p class="text-xs mt-1" style="color:rgba(241,245,249,0.3)">This takes 3–5 seconds</p>
+      </div>
+    </div>
+
+    <!-- Results State -->
+    <div id="results-state" class="hidden flex-col gap-2 p-4">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-bold uppercase tracking-widest"
+          style="color:rgba(241,245,249,0.3)">Findings</span>
+        <span id="issue-count" class="badge badge-low">0 issues</span>
+      </div>
+      <div id="issues-list" class="flex flex-col gap-2"></div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="hidden flex-col items-center justify-center text-center px-6 py-10 gap-3">
+      <div class="w-11 h-11 rounded-xl flex items-center justify-center"
+        style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2)">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#f87171">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+      </div>
+      <div>
+        <p class="text-sm font-bold text-white">Audit Failed</p>
+        <p class="text-xs mt-1 leading-relaxed" style="color:rgba(241,245,249,0.35)" id="error-text">Check the console
+          for details.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="px-4 py-3" style="border-top: 1px solid rgba(255,255,255,0.06)">
+    <button id="audit-btn"
+      class="btn w-full text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+      </svg>
+      <span id="btn-text">Run Page Audit</span>
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
