@@ -1,0 +1,7 @@
+dotenv 
+pydantic 
+langchain
+langchain-google-genai 
+langchain-core
+langchain-community 
+chroma
