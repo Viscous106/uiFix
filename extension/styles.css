@@ -570,3 +570,66 @@ body {
   background:rgba(239,68,68,0.1);
   border:1px solid rgba(239,68,68,0.2);
 }
+
+/* ===================================================>  */
+/* ISSUE ROW */
+
+.issue-header{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+
+.issue-desc{
+  font-size:12px;
+  font-weight:600;
+  color:rgba(255,255,255,0.9);
+  line-height:1.4;
+}
+
+.severity-pill{
+  font-size:10px;
+  font-weight:700;
+  padding:2px 6px;
+  border-radius:6px;
+  border:1px solid;
+  text-transform:uppercase;
+}
+
+.issue-selector{
+  font-size:10px;
+  font-family:monospace;
+  color:#93c5fd;
+  background:rgba(59,130,246,0.08);
+  border:1px solid rgba(59,130,246,0.2);
+  padding:4px 6px;
+  border-radius:6px;
+  margin-bottom:6px;
+  word-break:break-all;
+}
+
+.issue-fix{
+  font-size:10px;
+  color:rgba(255,255,255,0.45);
+  line-height:1.4;
+}
+
+
+/* =============================================>   ANIMATIONS */
+/* ===== STATE TRANSITIONS ===== */
+
+.state {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.state.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hidden {
+  display: none;
+}

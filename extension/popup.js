@@ -9,13 +9,30 @@ const issueCount = document.getElementById('issue-count');
 const errorState = document.getElementById('error-state');
 const errorText = document.getElementById('error-text');
 
+// function showState(state) {
+//     [welcomeState, loadingState, resultsState, errorState].forEach(el => {
+//         el.classList.add('hidden');
+//         el.classList.remove('flex');
+//     });
+//     state.classList.remove('hidden');
+//     state.classList.add('flex');
+// }
+
+async function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function showState(state) {
-    [welcomeState, loadingState, resultsState, errorState].forEach(el => {
-        el.classList.add('hidden');
-        el.classList.remove('flex');
-    });
-    state.classList.remove('hidden');
-    state.classList.add('flex');
+  [welcomeState, loadingState, resultsState, errorState].forEach(el => {
+    el.classList.add('hidden');
+    el.classList.remove('active');
+  });
+
+  state.classList.remove('hidden');
+
+  requestAnimationFrame(() => {
+    state.classList.add('active');
+  });
 }
 
 function renderIssues(issues) {
@@ -27,12 +44,13 @@ function renderIssues(issues) {
         const card = document.createElement('div');
         card.className = 'issue-card';
         card.innerHTML = `
-            <div class="flex items-start justify-between gap-2 mb-2">
-                <p class="text-xs font-semibold text-white/90 leading-snug flex-1">${issue.description || 'UI Issue Detected'}</p>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md border severity-${severity} shrink-0 uppercase">${severity}</span>
-            </div>
-            ${issue.selector ? `<p class="text-[10px] font-mono text-blue-400/70 bg-blue-500/5 border border-blue-500/10 rounded px-2 py-1 mb-2 truncate">${issue.selector}</p>` : ''}
-            ${issue.fix ? `<p class="text-[10px] text-white/40 leading-relaxed">💡 ${issue.fix}</p>` : ''}
+        <p class="issue-desc">${issue.description || 'UI Issue Detected'}</p>
+        <span class="severity-pill severity-${severity}">${severity}</span>
+        </div>
+        
+        ${issue.selector ? `<p class="issue-selector">${issue.selector}</p>` : ''}
+        ${issue.fix ? `<p class="issue-fix">💡 ${issue.fix}</p>` : ''}
+        <div class="issue-header">
         `;
         issuesList.appendChild(card);
     });
@@ -43,7 +61,9 @@ function renderIssues(issues) {
 auditBtn.addEventListener('click', async () => {
     auditBtn.disabled = true;
     btnText.textContent = 'Analyzing...';
+    // showState(loadingState);
     showState(loadingState);
+    await sleep(700);   
 
     try {
         // Step 1: Get active tab
@@ -98,7 +118,8 @@ auditBtn.addEventListener('click', async () => {
         }
 
         // Step 4: Send to backend
-        loadingText.textContent = 'Analyzing with Gemini AI...';
+        // loadingText.textContent = 'Analyzing with Gemini AI...';
+        typeText(loadingText, "Analyzing with Gemini AI...");
         const response = await fetch('http://localhost:8000/audit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -130,3 +151,13 @@ auditBtn.addEventListener('click', async () => {
         auditBtn.disabled = false;
     }
 });
+
+
+function typeText(el, text, speed = 40){
+  el.textContent = "";
+  let i = 0;
+  const timer = setInterval(() => {
+    el.textContent += text[i++];
+    if(i === text.length) clearInterval(timer);
+  }, speed);
+}
