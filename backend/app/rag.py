@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import TextLoader
@@ -12,8 +12,26 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 
+
+# History section:=>
+
+CHAT_HISTORY_FILE = "user_chat-history.txt"
+
+def load_chat_history():
+    if not os.path.exists(CHAT_HISTORY_FILE):
+        return ""
+    with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+        return f.read()
+
+def save_chat_history(user_input, ai_output):
+    with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
+        f.write(f"USER: {user_input}\n")
+        f.write(f"AI: {ai_output}\n\n")
+
+
+#Calling LLM Model
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-2.5-flash",
     temperature=0.3
 )
 
@@ -28,9 +46,8 @@ splitter = RecursiveCharacterTextSplitter(
 
 chunks = splitter.split_documents(documents)
 
-embedding_model = GoogleGenerativeAIEmbeddings(
-    model="models/embedding-001"
-)
+from langchain_community.embeddings import FakeEmbeddings
+embedding_model = FakeEmbeddings(size=384)
 
 #Converting embeddings into vector format
 vector = Chroma.from_documents(
@@ -48,6 +65,11 @@ You are UIFix — a senior-level UI/UX Auditor and Frontend Architect.
 
 You MUST use only the provided context as your reference knowledge.
 Do not invent rules outside the given context.
+
+=====================
+CHAT HISTORY
+=====================
+{chat_history}
 
 =====================
 DESIGN CONTEXT
@@ -128,7 +150,8 @@ IMPORTANT
 rag_chain = (
     {
         "context": retriever,
-        "input": RunnablePassthrough()
+        "input": RunnablePassthrough(),
+        "chat_history": lambda x: load_chat_history()
     }
     | prompt
     | llm
@@ -137,4 +160,24 @@ rag_chain = (
 
 #output
 def analyze_ui(user_input: str):
-    return rag_chain.invoke(user_input)
+    response = rag_chain.invoke(user_input)
+    save_chat_history(user_input, response)
+    return response
+
+# Continous chat feature
+if __name__ == "__main__":
+    print("\nUIFix AI Chat Started")
+    print("Type 'exit', 'quit', or 'stop' to end the conversation.\n")
+
+    while True:
+        user_input = input("You: ")
+
+        if user_input.lower() in ["exit", "quit", "stop"]:
+            print("\nUIFix: Chat ended.\n")
+            break
+
+        response = analyze_ui(user_input)
+
+        print("\nUIFix:\n")
+        print(response)
+        print("\n" + "-" * 60 + "\n")

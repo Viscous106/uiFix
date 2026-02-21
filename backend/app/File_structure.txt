@@ -1,0 +1,8 @@
+UI Guidelines:
+- All forms must have accessible labels.
+- Buttons must have descriptive text.
+- Color contrast must meet WCAG AA standards.
+- Headings must follow proper hierarchy.
+- Avoid excessive layout nesting.
+- Use semantic HTML elements.
+
