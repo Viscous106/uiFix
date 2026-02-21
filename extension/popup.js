@@ -50,17 +50,52 @@ auditBtn.addEventListener('click', async () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab) throw new Error("No active tab found");
 
+        // Guard against restricted pages where scripts cannot be injected
+        const tabUrl = tab.url || '';
+        const isRestrictedPage =
+            tabUrl.startsWith('chrome://') ||
+            tabUrl.startsWith('chrome-extension://') ||
+            tabUrl.startsWith('https://chrome.google.com/webstore') ||
+            tabUrl.startsWith('https://chromewebstore.google.com');
+        if (isRestrictedPage) {
+            throw new Error('This extension cannot run on Chrome Web Store or internal browser pages (chrome://). Please open a regular website tab and try again.');
+        }
+
         // Step 2: Extract DOM
         loadingText.textContent = 'Extracting DOM structure...';
         const injectionResults = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             files: ['content.js']
         });
+
+        if (
+            !injectionResults ||
+            !Array.isArray(injectionResults) ||
+            injectionResults.length === 0 ||
+            !injectionResults[0] ||
+            typeof injectionResults[0].result === 'undefined' ||
+            injectionResults[0].result === null
+        ) {
+            throw new Error('Unable to analyze this page. The extension cannot access the content of this tab. Please try a regular website page.');
+        }
         const domString = injectionResults[0].result;
 
         // Step 3: Capture screenshot
         loadingText.textContent = 'Capturing visual snapshot...';
-        const screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+        let screenshotDataUrl;
+        try {
+            screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+            const captureError = chrome.runtime && chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
+            if (!screenshotDataUrl || captureError) {
+                const message = captureError || 'Screenshot capture failed. This can happen on chrome:// pages, the Chrome Web Store, or if the tab is not fully loaded.';
+                throw new Error(message);
+            }
+        } catch (captureErr) {
+            const message = (chrome.runtime && chrome.runtime.lastError && chrome.runtime.lastError.message) ||
+                captureErr.message ||
+                'Screenshot capture failed. This can happen on chrome:// pages, the Chrome Web Store, or if the tab is not fully loaded.';
+            throw new Error(message);
+        }
 
         // Step 4: Send to backend
         loadingText.textContent = 'Analyzing with Gemini AI...';
