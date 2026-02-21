@@ -1,27 +1,42 @@
-# Calling API KEY
+# Calling AI-Key 
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
+from langchain_community.embeddings import FakeEmbeddings
 
+# History will be saved for 6 prompts only after then u have to work on new chat
+MAX_TURNS = 6
 
-# History section:=>
+chat_name = input("Enter chat session name: ").strip()
+CHAT_HISTORY_FILE = f"{chat_name}_chat-history.txt"
 
-CHAT_HISTORY_FILE = "user_chat-history.txt"
-
+# Chat - History
 def load_chat_history():
     if not os.path.exists(CHAT_HISTORY_FILE):
         return ""
+
     with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
-        return f.read()
+        lines = f.readlines()
+
+    exchanges = []
+    temp = []
+    for line in lines:
+        temp.append(line)
+        if line.strip() == "":
+            exchanges.append("".join(temp))
+            temp = []
+
+    exchanges = exchanges[-MAX_TURNS:]
+    return "\n".join(exchanges)
+
 
 def save_chat_history(user_input, ai_output):
     with open(CHAT_HISTORY_FILE, "a", encoding="utf-8") as f:
@@ -29,16 +44,25 @@ def save_chat_history(user_input, ai_output):
         f.write(f"AI: {ai_output}\n\n")
 
 
-#Calling LLM Model
+def get_turn_count():
+    if not os.path.exists(CHAT_HISTORY_FILE):
+        return 0
+
+    with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return content.count("USER:")
+
+# model
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     temperature=0.3
 )
 
-loader = TextLoader("File_structure.txt") # FILE WILL CHANGE when we will get 
+loader = TextLoader("File_structure.txt")
 documents = loader.load()
 
-#Splitting the filrd into smaller chuinks
+# Split long text into small chunks 
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=700,
     chunk_overlap=100
@@ -46,20 +70,18 @@ splitter = RecursiveCharacterTextSplitter(
 
 chunks = splitter.split_documents(documents)
 
-from langchain_community.embeddings import FakeEmbeddings
 embedding_model = FakeEmbeddings(size=384)
 
-#Converting embeddings into vector format
+# Converting the embedding into vector database
 vector = Chroma.from_documents(
     documents=chunks,
     embedding=embedding_model,
     persist_directory="./chroma_db"
 )
 
-# Retrieving from vector embedding
 retriever = vector.as_retriever(search_kwargs={"k": 3})
 
-# System Prompt 
+# Prompt Template
 prompt = ChatPromptTemplate.from_template("""
 You are UIFix — a senior-level UI/UX Auditor and Frontend Architect.
 
@@ -146,7 +168,6 @@ IMPORTANT
 - Think like a senior frontend engineer performing a professional audit.
 """)
 
-# Langchain Chain (pipeline)
 rag_chain = (
     {
         "context": retriever,
@@ -158,18 +179,22 @@ rag_chain = (
     | StrOutputParser()
 )
 
-#output
+
 def analyze_ui(user_input: str):
     response = rag_chain.invoke(user_input)
     save_chat_history(user_input, response)
     return response
 
-# Continuous chat feature
+# Chat Options 
 if __name__ == "__main__":
     print("\nUIFix AI Chat Started")
     print("Type 'exit', 'quit', or 'stop' to end the conversation.\n")
 
     while True:
+        if get_turn_count() >= MAX_TURNS:
+            print("\nUIFix: Chat session limit reached (6 turns). Please start a new session.\n")
+            break
+
         user_input = input("You: ")
 
         if user_input.lower() in ["exit", "quit", "stop"]:
