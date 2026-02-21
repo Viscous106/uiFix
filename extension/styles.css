@@ -635,3 +635,28 @@ body {
 .hidden {
   display: none;
 }
+
+
+.severity-low{
+  background: rgba(74,222,128,0.1);
+  color:#86efac;
+  border-color: rgba(74,222,128,0.2);
+}
+
+.severity-medium{
+  background: rgba(234,179,8,0.1);
+  color:#fde68a;
+  border-color: rgba(234,179,8,0.2);
+}
+
+.severity-high{
+  background: rgba(249,115,22,0.1);
+  color:#fdba74;
+  border-color: rgba(249,115,22,0.2);
+}
+
+.severity-critical{
+  background: rgba(239,68,68,0.1);
+  color:#fca5a5;
+  border-color: rgba(239,68,68,0.2);
+}

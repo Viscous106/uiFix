@@ -44,13 +44,13 @@ function renderIssues(issues) {
         const card = document.createElement('div');
         card.className = 'issue-card';
         card.innerHTML = `
-        <p class="issue-desc">${issue.description || 'UI Issue Detected'}</p>
-        <span class="severity-pill severity-${severity}">${severity}</span>
-        </div>
-        
-        ${issue.selector ? `<p class="issue-selector">${issue.selector}</p>` : ''}
-        ${issue.fix ? `<p class="issue-fix">💡 ${issue.fix}</p>` : ''}
-        <div class="issue-header">
+          <div class="issue-header">
+            <p class="issue-desc">${issue.description || 'UI Issue Detected'}</p>
+            <span class="severity-pill severity-${severity}">${severity}</span>
+          </div>
+            
+          ${issue.selector ? `<p class="issue-selector">${issue.selector}</p>` : ''}
+          ${issue.fix ? `<p class="issue-fix">💡 ${issue.fix}</p>` : ''}
         `;
         issuesList.appendChild(card);
     });
