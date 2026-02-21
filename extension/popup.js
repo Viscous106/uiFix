@@ -154,10 +154,20 @@ auditBtn.addEventListener('click', async () => {
 
 
 function typeText(el, text, speed = 40){
+  // Clear any existing typing interval on this element
+  if (el._typeTextTimer) {
+    clearInterval(el._typeTextTimer);
+    delete el._typeTextTimer;
+  }
   el.textContent = "";
   let i = 0;
   const timer = setInterval(() => {
     el.textContent += text[i++];
-    if(i === text.length) clearInterval(timer);
+    if (i === text.length) {
+      clearInterval(timer);
+      delete el._typeTextTimer;
+    }
   }, speed);
+  // Store timer id on the element so it can be cleared on subsequent calls
+  el._typeTextTimer = timer;
 }

@@ -513,9 +513,11 @@ body {
   justify-content:center;
   padding:48px 24px;
   gap:16px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.hidden{ display:none; }
 
 /* RESULTS */
 .results-header{
