@@ -1,37 +1,57 @@
-# Calling AI-Key
+# ==========================================================
+# UIFix AI — Final Version (Gemini Vision + Chat History)
+# ==========================================================
+
+# -------------------------
+# API KEY SETUP
+# -------------------------
+
 import os
 from dotenv import load_dotenv, set_key
+
 load_dotenv()
 
-# --- API Key Guard ---
 DOTENV_PATH = os.path.join(os.path.dirname(__file__), "../../.env")
+
 
 def ensure_api_key():
     key = os.getenv("GOOGLE_API_KEY")
+
     if not key or key.strip() == "":
         print("\n⚠️  No Gemini API key found.")
         key = input("🔑 Enter your Google Gemini API key: ").strip()
+
         if not key:
-            raise ValueError("API key is required. Get one at https://aistudio.google.com/apikey")
+            raise ValueError(
+                "API key is required. Get one at https://aistudio.google.com/apikey"
+            )
+
         set_key(DOTENV_PATH, "GOOGLE_API_KEY", key)
         os.environ["GOOGLE_API_KEY"] = key
         print("✅ API key saved to .env\n")
     else:
         print("✅ Gemini API key loaded.\n")
 
+
 ensure_api_key()
+
+# -------------------------
+# IMPORTS
+# -------------------------
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import FakeEmbeddings
+from langchain_core.messages import HumanMessage
 
-# History limit (USED ONLY FOR CLI MODE)
+
+# -------------------------
+# CONFIG
+# -------------------------
+
 MAX_TURNS = 6
 CHAT_HISTORY_FILE = "chat-history.txt"
+
 
 # -------------------------
 # CHAT HISTORY FUNCTIONS
@@ -46,6 +66,7 @@ def load_chat_history():
 
     exchanges = []
     temp = []
+
     for line in lines:
         temp.append(line)
         if line.strip() == "":
@@ -73,19 +94,31 @@ def get_turn_count():
 
 
 # -------------------------
-# MODEL
+# MODEL (Gemini Vision)
 # -------------------------
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
-    temperature=0.3
+    temperature=0.3,
 )
 
+
 # -------------------------
-# AUDIT PROMPT
+# MAIN AUDIT FUNCTION
 # -------------------------
 
-rag_chain_template = ChatPromptTemplate.from_template("""
+def analyze_ui(dom_string: str, screenshot_base64: str = None) -> str:
+    """
+    Analyzes UI using:
+    - DOM string
+    - Optional screenshot (base64 PNG)
+
+    Uses Gemini 2.5 Flash (Vision-enabled).
+    """
+
+    chat_history = load_chat_history()
+
+    audit_prompt = f"""
 You are UIFix — a senior-level UI/UX Auditor and Frontend Architect.
 
 =====================
@@ -94,82 +127,73 @@ CHAT HISTORY
 {chat_history}
 
 =====================
-DOM CONTEXT
+DOM STRUCTURE
 =====================
-{context}
-
-=====================
-USER INPUT
-=====================
-{input}
+{dom_string[:6000]}
 
 =====================
 OBJECTIVE
 =====================
 
-Analyze the UI based on the provided DOM context and user input.
+Analyze this UI using BOTH:
+- The DOM structure
+- The screenshot image (if provided)
 
 =====================
 ANALYSIS REQUIREMENTS
 =====================
 
 1. Provide a UI Health Score (0–100).
-2. Identify structural issues.
-3. Identify accessibility issues.
-4. Identify UX and hierarchy problems.
-5. Suggest concrete, actionable improvements.
+2. Identify accessibility issues.
+3. Identify UX and hierarchy problems.
+4. Identify structural / semantic issues.
+5. Suggest concrete, actionable fixes.
 
 =====================
-OUTPUT FORMAT
+OUTPUT FORMAT (STRICT)
 =====================
 
-UI_HEALTH_SCORE: <number or N/A>
+UI_HEALTH_SCORE: <number>
 
 KEY_ISSUES:
-- [SEVERITY] Description | selector: <css selector if known> | fix: <short fix suggestion>
+- [SEVERITY] Description | selector: <css selector if identifiable> | fix: <short fix>
 
 IMPROVEMENT_RECOMMENDATIONS:
 - ...
-""")
+"""
 
+    # -------------------------
+    # MULTIMODAL MESSAGE
+    # -------------------------
 
-# -------------------------
-# MAIN AUDIT FUNCTION
-# -------------------------
+    if screenshot_base64:
+        print(
+            f"\n🖼️  [VISION MODE] Screenshot received — {len(screenshot_base64)} chars\n"
+        )
 
-def analyze_ui(dom_string: str) -> str:
+        message = HumanMessage(
+            content=[
+                {"type": "text", "text": audit_prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{screenshot_base64}"
+                    },
+                },
+            ]
+        )
+    else:
+        message = HumanMessage(content=audit_prompt)
 
-    # 🚀 REMOVED SESSION LIMIT CHECK HERE
-    # Audit should NEVER be blocked
+    response = llm.invoke([message])
+    result = response.content if hasattr(response, "content") else str(response)
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=700,
-        chunk_overlap=100
-    )
+    print(f"\n🤖 Gemini Response Preview:\n{result[:300]}")
+    print("=" * 60)
 
-    docs = splitter.create_documents([dom_string])
+    save_chat_history(dom_string[:200], result)
 
-    embedding_model = FakeEmbeddings(size=384)
-    vector = Chroma.from_documents(documents=docs, embedding=embedding_model)
-    retriever = vector.as_retriever(search_kwargs={"k": 3})
-
-    rag_chain = (
-        {
-            "context": retriever,
-            "input": RunnablePassthrough(),
-            "chat_history": lambda x: load_chat_history()
-        }
-        | rag_chain_template
-        | llm
-        | StrOutputParser()
-    )
-
-    response = rag_chain.invoke(dom_string)
-
-    # Save history ONLY for CLI mode
-    save_chat_history(dom_string[:200], response)
-
-    return response
+    return result
 
 
 # -------------------------
@@ -198,30 +222,38 @@ Be concise, practical, and direct.
 """)
 
 
-def chat_with_context(audit_context: str, chat_history: str, user_message: str) -> str:
+def chat_with_context(audit_context: str, user_message: str) -> str:
+    chat_history = load_chat_history()
+
     chain = chat_prompt | llm | StrOutputParser()
-    response = chain.invoke({
-        "audit_context": audit_context,
-        "chat_history": chat_history,
-        "question": user_message,
-    })
+
+    response = chain.invoke(
+        {
+            "audit_context": audit_context,
+            "chat_history": chat_history,
+            "question": user_message,
+        }
+    )
+
+    save_chat_history(user_message, response)
+
     return response
 
 
 # -------------------------
-# CLI MODE ONLY
+# CLI MODE
 # -------------------------
 
 if __name__ == "__main__":
 
-    print("\nUIFix AI Chat Started")
-    print("Type 'exit', 'quit', or 'stop' to end the conversation.\n")
+    print("\n🚀 UIFix AI Chat Started")
+    print("Type 'exit', 'quit', or 'stop' to end.\n")
 
     while True:
 
         if get_turn_count() >= MAX_TURNS:
-            print("\n🚫 UIFix: Session limit reached (6 interactions).")
-            print("👉 Please open a NEW browser tab to start a fresh audit session.\n")
+            print("\n🚫 Session limit reached (6 interactions).")
+            print("👉 Open a new tab for a fresh session.\n")
             break
 
         user_input = input("You: ")
@@ -230,6 +262,7 @@ if __name__ == "__main__":
             print("\nUIFix: Chat ended.\n")
             break
 
+        # For CLI we treat input as DOM (no screenshot)
         response = analyze_ui(user_input)
 
         print("\nUIFix:\n")

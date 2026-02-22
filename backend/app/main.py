@@ -1,5 +1,11 @@
+# ==========================================================
+# uiFix Backend — Final Production Version
+# Gemini Vision + Quota Safe + Session Chat
+# ==========================================================
+
 import re
 import uuid
+import time
 from typing import Dict
 
 from fastapi import FastAPI, HTTPException
@@ -8,36 +14,79 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import AuditRequest, AuditResponse, Issue, ChatRequest, ChatResponse
 from rag import analyze_ui, chat_with_context
 
-app = FastAPI(title="uiFix Backend", version="1.0.0")
+from langchain_google_genai.chat_models import ChatGoogleGenerativeAIError
 
-# ---------------------------------------------------------------------------
+
+# ==========================================================
+# FASTAPI INIT
+# ==========================================================
+
+app = FastAPI(title="uiFix Backend", version="2.0.0")
+
+
+# ==========================================================
 # CORS (Chrome Extension Support)
-# ---------------------------------------------------------------------------
+# ==========================================================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev. Lock to chrome-extension://<id> in prod.
+    allow_origins=["*"],  # Lock to chrome-extension://<id> in production
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# In-memory session store
-# ---------------------------------------------------------------------------
+
+# ==========================================================
+# CONFIG
+# ==========================================================
+
 MAX_CHAT_TURNS = 6
 sessions: Dict[str, dict] = {}
 
 
-# ---------------------------------------------------------------------------
-# Health Check
-# ---------------------------------------------------------------------------
+# ==========================================================
+# QUOTA SAFE WRAPPER
+# ==========================================================
+
+def safe_analyze_ui(dom_string: str, screenshot_base64: str | None):
+    """
+    Prevents 429 crashes.
+    Retries once after waiting.
+    """
+
+    try:
+        return analyze_ui(
+            dom_string=dom_string,
+            screenshot_base64=screenshot_base64,
+        )
+
+    except ChatGoogleGenerativeAIError as e:
+
+        if "RESOURCE_EXHAUSTED" in str(e):
+            print("\n⚠️ Gemini quota hit. Waiting 20 seconds before retry...\n")
+            time.sleep(20)
+
+            return analyze_ui(
+                dom_string=dom_string,
+                screenshot_base64=screenshot_base64,
+            )
+
+        raise e
+
+
+# ==========================================================
+# HEALTH CHECK
+# ==========================================================
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 
-# ---------------------------------------------------------------------------
-# AUDIT ENDPOINT
-# ---------------------------------------------------------------------------
+# ==========================================================
+# AUDIT ENDPOINT (VISION ENABLED)
+# ==========================================================
+
 @app.post("/audit", response_model=AuditResponse)
 async def audit(request: AuditRequest):
 
@@ -53,12 +102,15 @@ async def audit(request: AuditRequest):
         f"DOM STRUCTURE:\n{request.dom_string[:6000]}"
     )
 
-    raw_response = analyze_ui(dom_context)
+    # 🔥 Vision multimodal call (DOM + Screenshot)
+    raw_response = safe_analyze_ui(
+        dom_string=dom_context,
+        screenshot_base64=request.screenshot_base64 or None,
+    )
 
     issues = parse_issues(raw_response)
     health_score = parse_health_score(raw_response)
 
-    # Create session
     session_id = str(uuid.uuid4())
 
     sessions[session_id] = {
@@ -76,20 +128,24 @@ async def audit(request: AuditRequest):
     )
 
 
-# ---------------------------------------------------------------------------
-# CHAT ENDPOINT (6 Turn Limit)
-# ---------------------------------------------------------------------------
+# ==========================================================
+# CHAT ENDPOINT (6 TURN LIMIT)
+# ==========================================================
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
 
     session = sessions.get(request.session_id)
 
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found. Run an audit first.")
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found. Run an audit first."
+        )
 
     if session["turns_used"] >= MAX_CHAT_TURNS:
         return ChatResponse(
-            reply="This chat session has ended (6 turn limit reached). Please run a new audit to start a fresh session.",
+            reply="This chat session has ended (6 turn limit reached). Run a new audit.",
             turns_used=session["turns_used"],
             turns_remaining=0,
             session_expired=True,
@@ -100,11 +156,21 @@ async def chat(request: ChatRequest):
         for msg in session["history"]
     ) or "No previous messages."
 
-    reply = chat_with_context(
-        audit_context=session["audit_context"],
-        chat_history=history_text,
-        user_message=request.message,
-    )
+    try:
+        reply = chat_with_context(
+            audit_context=session["audit_context"],
+            user_message=request.message,
+        )
+    except ChatGoogleGenerativeAIError as e:
+
+        if "RESOURCE_EXHAUSTED" in str(e):
+            return ChatResponse(
+                reply="Gemini quota exceeded. Please try again later.",
+                turns_used=session["turns_used"],
+                turns_remaining=MAX_CHAT_TURNS - session["turns_used"],
+                session_expired=False,
+            )
+        raise e
 
     session["history"].append({"role": "user", "content": request.message})
     session["history"].append({"role": "ai", "content": reply})
@@ -120,9 +186,10 @@ async def chat(request: ChatRequest):
     )
 
 
-# ---------------------------------------------------------------------------
+# ==========================================================
 # OUTPUT PARSERS
-# ---------------------------------------------------------------------------
+# ==========================================================
+
 def parse_health_score(text: str) -> int | None:
     match = re.search(r"UI_HEALTH_SCORE[:\s]+(\d+)", text, re.IGNORECASE)
     if match:
@@ -135,7 +202,7 @@ def parse_issues(text: str) -> list[Issue]:
     issues = []
 
     key_issues_match = re.search(
-        r"KEY_ISSUES[:\s]+(.*?)(?:IMPROVEMENT_RECOMMENDATIONS|ARCHITECTURAL|$)",
+        r"KEY_ISSUES[:\s]+(.*?)(?:IMPROVEMENT_RECOMMENDATIONS|$)",
         text,
         re.DOTALL | re.IGNORECASE,
     )
@@ -160,7 +227,6 @@ def parse_issues(text: str) -> list[Issue]:
 
     for line in lines:
         content = line.lstrip("- ").strip()
-
         severity = "medium"
 
         sev_match = re.match(r"[\[\(](\w+)[\]\)]\s*", content)
@@ -194,9 +260,10 @@ def parse_issues(text: str) -> list[Issue]:
     return issues or [Issue(description=text[:300], severity="medium")]
 
 
-# ---------------------------------------------------------------------------
+# ==========================================================
 # LOCAL RUN
-# ---------------------------------------------------------------------------
+# ==========================================================
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
